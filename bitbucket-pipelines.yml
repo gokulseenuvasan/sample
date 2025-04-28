@@ -1,0 +1,82 @@
+image: node:18
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: Build and Test
+          caches:
+            - node
+          script:
+            - echo "Installing dependencies"
+            - npm install
+            - echo "Building the application"
+            - npm run build
+            # Debug: List files to verify they exist
+            - ls -la
+          artifacts:
+            - .next/**
+            - public/**
+            - node_modules/**
+            - package.json
+            - package-lock.json
+            - server.js
+      - step:
+          name: Upload Build Files to Server
+          script:
+            - echo "Uploading build files to server"
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: '.next'
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: 'public'
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: 'node_modules'
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: 'package.json'
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: 'package-lock.json'
+            - pipe: atlassian/scp-deploy:1.5.2
+              variables:
+                USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                REMOTE_PATH: 'C:/MyD Projects/buildfile'
+                LOCAL_PATH: 'server.js'
+      - step:
+          name: Deploy and Start Application
+          deployment: test
+          script:
+            - echo "Deploying and Starting App on server"
+            - pipe: atlassian/ssh-run:0.4.0
+              variables:
+                SSH_USER: 'administrator'
+                SERVER: ${SERVER_ADDRESS}
+                COMMAND: |
+                  echo "Cleaning deploy folder"
+                  rmdir /S /Q "C:\MyD Projects\deploy"
+                  mkdir "C:\MyD Projects\deploy"
+                  echo "Copying files from buildfile to deploy"
+                  xcopy "C:\MyD Projects\buildfile\*" "C:\MyD Projects\deploy" /E /H /C /Y
+                  echo "Moving to deploy folder"
+                  cd "C:\MyD Projects\deploy"
+                  echo "Starting application"
+                  pm2 start server.js
